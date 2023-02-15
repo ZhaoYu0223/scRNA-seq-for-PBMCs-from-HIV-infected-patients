@@ -1,0 +1,48 @@
+library(Seurat)
+library(dplyr)
+library(ggplot2)
+library(patchwork)
+data_name = c("INR-1","INR-2","INR-3","INR-4","INR-5","INR-6","INR-7","INR-8","IR-1","IR-2","IR-3","IR-4","IR-5","IR-6","IR-7","IR-8","IR-9","IR-10")
+object.list <- list()
+for (i in seq(data_name)) {
+	mat <- Read10X(data.dir = data_name[i], gene.column = 1)
+	object.list[[i]] <- CreateSeuratObject(counts = mat, project = data_name[i], assay = assay)}
+
+## merge Seurat object
+object <- merge(x = object.list[[1]], y = unlist(object.list[-1]), add.cell.ids = data_name)
+
+## filtering
+object <- PercentageFeatureSet(object, pattern = "^MT-", col.name = "Percent_mito")
+object <- subset(object, subset = Percent_mito < 10)
+object <- subset(object, subset = nCount_RNA < 8000)
+object <- subset(object, subset = nFeature_RNA > 500 & nFeature_RNA < 4000)
+
+## integration
+object <- NormalizeData(object, normalization.method = "LogNormalize",scale.factor = 10000)
+object <- FindVariableFeatures(object, selection.method = "vst",nfeatures = 2000)
+object <- ScaleData(object = object, vars.to.regress = NULL,features = rownames(object))
+
+object.list <- SplitObject(object, split.by = "orig.ident")
+object.list <- SplitObject.Image(object.list)
+object <- FindIntegrationAnchors(object.list, dims = 1:50, normalization.method = "LogNormalize", anchor.features = 3000, k.filter = 200)
+
+## Find clusters
+object <- FindNeighbors(object, reduction = "pca", dims = seq(50),force.recalc = TRUE)
+object <- FindClusters(object, resolution = "pca", temp.file.location = getwd())
+
+## Draw PCA scatter plot
+DimPlot(object, reduction = "pca")+ NoLegend()
+
+## Draw tsne plot
+p1 <- DimPlot(object, reduction = ' tsne', group.by = "orig.ident", cols=rainbow(nlevels(object@meta.data$orig.ident)), label = FALSE)
+p2 <- DimPlot(object, reduction = ' tsne', group.by = "seurat_clusters", cols=rainbow(nlevels(object@meta.data$seurat_clusters)), label = TRUE)
+ggsave(p1+p2, file = " tsne.pdf")
+
+## Draw UMAP plot
+p1 <- DimPlot(object, reduction = 'umap', group.by = "orig.ident", cols=rainbow(nlevels(object@meta.data$orig.ident)), label = FALSE)
+p2 <- DimPlot(object, reduction = 'umap', group.by = "seurat_clusters", cols=rainbow(nlevels(object@meta.data$seurat_clusters)), label = TRUE)
+ggsave(p1+p2, file = "UMAP.pdf")
+
+## Save data object 
+DefaultAssay(object) <- "RNA"
+save(object, file = "obj.Rda")

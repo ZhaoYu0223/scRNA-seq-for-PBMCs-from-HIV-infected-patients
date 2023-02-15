@@ -1,0 +1,20 @@
+## Find DE Gene
+Idents(object) <- "seurat_clusters"
+obj.markers <- FindAllMarkers(object = object, only.pos = TRUE,
+    min.pct = 0.25, logfc.threshold = 0.25,
+    return.thresh = 0.01, pseudocount.use = 0)
+save(obj.markers, file = "markers.Rda")
+
+## Express distribution of marker genes
+umapplot1 <- DimPlot(recluster_B, reduction = "umap", group.by = "orig.ident", pt.size = 1.5)
+FeaturePlot(cluster_B, features = c("TCL1A") 
+stat<-table(cluster_B$orig.ident,cluster_B$seurat_clusters) 
+stat
+
+## Draw dotplot diagram
+marker <- c("CD19","MS4A1","CD79A","CD79B","TCL1A","IL4R","CD69","AIM2","TNFRSF13B","CD27","JCHAIN","MZB1","XBP1")
+DotPlot(cluster_B, features = marker)+coord_flip()+
+theme_bw()+
+theme(panel.grid = element_blank(), axis.text.x=element_text(hjust = 1,vjust=0.5))+
+labs(x=NULL,y=NULL)+guides(size=guide_legend(order=3))+
+scale_color_gradientn(values = seq(0,1,0.2),colours = c('#007799','#CCEEFF','#FFC8B4','#C63300'))
